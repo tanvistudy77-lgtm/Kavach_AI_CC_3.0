@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>KAVACH Security Demo</title>
+  <style>
+    body {
+      background: #e8edf3;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      padding-top: 70px;
+    }
+    .phone {
+      width: 420px;
+      background: white;
+      border-radius: 20px;
+      padding: 25px;
+      box-shadow: 0 10px 40px #0002;
+    }
+    h2 { color: #172536; }
+    .message {
+      background: #e2f5e7;
+      padding: 20px;
+      border-radius: 14px;
+      line-height: 1.7;
+      margin: 20px 0;
+      user-select: text;
+    }
+    .safe { background: #f0f2f5; }
+    .sender {
+      font-weight: bold;
+      color: #42614b;
+    }
+  </style>
+</head>
+<body>
+  <div class="phone">
+    <h2>Messages</h2>
+
+    <div class="sender">SBI-KYC-ALERT</div>
+    <div class="message">
+      Dear SBI customer, your account will be blocked today.
+      Complete KYC immediately at
+      https://sbi-secure-update.xyz
+      and verify your OTP.
+    </div>
+
+    <div class="sender">College Office</div>
+    <div class="message safe">
+      Your college workshop starts tomorrow at 10 AM in Lab 2.
+      Please bring your notebook.
+    </div>
+  </div>
+</body>
+</html>
