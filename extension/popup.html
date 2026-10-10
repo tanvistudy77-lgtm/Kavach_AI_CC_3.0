@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KAVACH Guard</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+
+<body>
+  <main class="app">
+    <header>
+      <div class="logo">K</div>
+      <div>
+        <h1>KAVACH GUARD</h1>
+        <p>Local Scam Protection</p>
+      </div>
+    </header>
+
+    <div class="privacy">
+      ● LOCAL MODE · NO CLOUD API
+    </div>
+
+    <section class="card">
+      <span class="label">CURRENT PAGE</span>
+      <p id="currentUrl">Loading...</p>
+
+      <button id="scanUrl">
+        Scan Current URL
+      </button>
+    </section>
+
+    <section class="card">
+      <span class="label">MESSAGE / URL</span>
+
+      <textarea
+        id="input"
+        placeholder="Paste suspicious message or URL..."
+      ></textarea>
+
+      <button id="analyzeText">
+        Analyze with KAVACH
+      </button>
+    </section>
+
+    <section id="result" class="result hidden">
+      <div class="scoreRow">
+        <div>
+          <span class="label">RISK SCORE</span>
+          <h2 id="score">0</h2>
+        </div>
+
+        <strong id="level">LOW</strong>
+      </div>
+
+      <p id="category"></p>
+
+      <div id="signals"></div>
+    </section>
+
+    <footer>
+      KAVACH AI · VAYU FORGE
+    </footer>
+  </main>
+
+  <script src="popup.js"></script>
+</body>
+</html>
