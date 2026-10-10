@@ -1,5 +1,4 @@
 export type RiskLevel = "LOW" | "SUSPICIOUS" | "HIGH" | "CRITICAL";
-
 export type SignalCategory =
   | "urgency"
   | "fear"
@@ -7,7 +6,6 @@ export type SignalCategory =
   | "financial"
   | "url"
   | "impersonation";
-
 export interface ThreatSignal {
   id: string;
   label: string;
@@ -15,13 +13,11 @@ export interface ThreatSignal {
   reason: string;
   category: SignalCategory;
 }
-
 export interface AnalysisResult {
   score: number;
   level: RiskLevel;
   category: string;
   signals: ThreatSignal[];
-
   scamDNA: {
     urgency: number;
     fear: number;
@@ -29,16 +25,13 @@ export interface AnalysisResult {
     credentials: number;
     urlRisk: number;
   };
-
   claimedBrand?: string;
   observedDomain?: string;
   expectedDomain?: string;
   trustGap?: number;
-
   deceptionChain: string[];
   actions: string[];
 }
-
 const brands = [
   {
     display: "State Bank of India",
@@ -76,28 +69,21 @@ const brands = [
     domains: ["flipkart.com"],
   },
 ];
-
 function extractUrl(text: string): string | null {
   const match = text.match(/https?:\/\/[^\s]+|www\.[^\s]+/i);
-
   if (!match) return null;
-
   return match[0].replace(/[),.;!?]+$/, "");
 }
-
 function isTrustedDomain(hostname: string, allowedDomains: string[]) {
   return allowedDomains.some(
     (domain) =>
       hostname === domain || hostname.endsWith(`.${domain}`)
   );
 }
-
 export function analyzeThreat(rawInput: string): AnalysisResult {
   const input = rawInput.trim();
   const lower = input.toLowerCase();
-
   const signals: ThreatSignal[] = [];
-
   const addSignal = (
     id: string,
     label: string,
@@ -115,12 +101,10 @@ export function analyzeThreat(rawInput: string): AnalysisResult {
       });
     }
   };
-
   const urgencyDetected =
     /\b(urgent|urgently|immediately|right now|act now|today only|within \d+ hours?|expire|expires|last chance)\b/i.test(
       input
     );
-
   if (urgencyDetected) {
     addSignal(
       "urgency",
@@ -130,12 +114,10 @@ export function analyzeThreat(rawInput: string): AnalysisResult {
       "urgency"
     );
   }
-
   const fearDetected =
     /\b(blocked|block your|suspended|suspend|deactivated|deactivate|legal action|police|penalty|account closed|account will be blocked)\b/i.test(
       input
     );
-
   if (fearDetected) {
     addSignal(
       "fear",
@@ -145,12 +127,10 @@ export function analyzeThreat(rawInput: string): AnalysisResult {
       "fear"
     );
   }
-
   const credentialsDetected =
     /\b(otp|password|pin|cvv|kyc|login|log in|verify account|verify your account|bank details|card details|credentials)\b/i.test(
       input
     );
-
   if (credentialsDetected) {
     addSignal(
       "credentials",
@@ -160,12 +140,10 @@ export function analyzeThreat(rawInput: string): AnalysisResult {
       "credentials"
     );
   }
-
   const financialDetected =
     /(₹|\brs\.?\s?\d|\bupi\b|cashback|lottery|prize|reward|refund|investment|guaranteed return|payment request|claim money)/i.test(
       input
     );
-
   if (financialDetected) {
     addSignal(
       "financial",
@@ -175,27 +153,49 @@ export function analyzeThreat(rawInput: string): AnalysisResult {
       "financial"
     );
   }
-
   const detectedBrand = brands.find((brand) =>
     brand.names.some((name) => lower.includes(name))
   );
-
   const foundUrl = extractUrl(input);
-
   let observedDomain: string | undefined;
   let expectedDomain: string | undefined;
   let trustGap: number | undefined;
-
   if (foundUrl) {
     try {
       const normalizedUrl = foundUrl.startsWith("www.")
-        ? `https://${foundUrl}`
+        ? `https\://${foundUrl}`
         : foundUrl;
-
       const parsed = new URL(normalizedUrl);
-
       observedDomain = parsed.hostname.toLowerCase().replace(/^www\./, "");
 
+      // Loopback HTTP is normal during local development.
+      const isLoopback =
+        observedDomain === "localhost" ||
+        /^127\./.test(observedDomain) ||
+        observedDomain === "[::1]" ||
+        observedDomain === "::1";
+      const isIpHostname = /^\d{1,3}(\.\d{1,3}){3}$/.test(observedDomain);
+
+      // Neither HTTP nor an unusual port alone proves a scam.
+      if (parsed.protocol === "http:" && !isLoopback) {
+        addSignal(
+          "unencrypted-http",
+          "Unencrypted HTTP connection",
+          15,
+          "HTTP traffic is not encrypted. Verify the service before entering sensitive information.",
+          "url"
+        );
+      }
+
+      if (parsed.port && !isLoopback) {
+        addSignal(
+          "unusual-port",
+          "Unusual web port",
+          10,
+          `The site uses port ${parsed.port}. Custom ports can be legitimate but merit verification.`,
+          "url"
+        );
+      }
       if (
         /bit\.ly|tinyurl\.com|t\.co|goo\.gl|rb\.gy|cutt\.ly|shorturl/i.test(
           observedDomain
@@ -209,8 +209,7 @@ export function analyzeThreat(rawInput: string): AnalysisResult {
           "url"
         );
       }
-
-      if (/^\d{1,3}(\.\d{1,3}){3}$/.test(observedDomain)) {
+      if (isIpHostname && !isLoopback) {
         addSignal(
           "ip-domain",
           "IP address used as domain",
@@ -219,7 +218,6 @@ export function analyzeThreat(rawInput: string): AnalysisResult {
           "url"
         );
       }
-
       if (observedDomain.includes("xn--")) {
         addSignal(
           "punycode",
@@ -229,7 +227,6 @@ export function analyzeThreat(rawInput: string): AnalysisResult {
           "url"
         );
       }
-
       if (
         /\.(xyz|top|click|buzz|live|support|info|site|online)$/i.test(
           observedDomain
@@ -243,7 +240,6 @@ export function analyzeThreat(rawInput: string): AnalysisResult {
           "url"
         );
       }
-
       if (
         /(secure|verify|verification|update|kyc|login|signin|account|support)/i.test(
           observedDomain
@@ -257,8 +253,7 @@ export function analyzeThreat(rawInput: string): AnalysisResult {
           "url"
         );
       }
-
-      if (observedDomain.split(".").length >= 4) {
+      if (!isIpHostname && observedDomain.split(".").length >= 4) {
         addSignal(
           "many-subdomains",
           "Excessive subdomains",
@@ -277,10 +272,8 @@ export function analyzeThreat(rawInput: string): AnalysisResult {
       );
     }
   }
-
   if (detectedBrand && observedDomain) {
     expectedDomain = detectedBrand.domains[0];
-
     if (!isTrustedDomain(observedDomain, detectedBrand.domains)) {
       addSignal(
         "brand-mismatch",
@@ -289,53 +282,48 @@ export function analyzeThreat(rawInput: string): AnalysisResult {
         `${detectedBrand.display} is mentioned, but the link does not use its expected domain.`,
         "impersonation"
       );
-
       trustGap = 96;
     } else {
       trustGap = 8;
     }
   }
-
   let score = signals.reduce((total, signal) => total + signal.points, 0);
   score = Math.min(100, score);
-
   if (signals.length === 0) {
     score = 5;
   }
-
   let level: RiskLevel;
-
   if (score >= 80) level = "CRITICAL";
   else if (score >= 60) level = "HIGH";
   else if (score >= 30) level = "SUSPICIOUS";
   else level = "LOW";
-
   let category = "No major threat detected";
-
   const hasImpersonation = signals.some(
     (signal) => signal.category === "impersonation"
   );
-
   const hasUrlRisk = signals.some(
     (signal) => signal.category === "url"
   );
 
+  const isUnencryptedIpUrl =
+    signals.some((signal) => signal.id === "ip-domain") &&
+    signals.some((signal) => signal.id === "unencrypted-http");
   if (hasImpersonation && credentialsDetected) {
     category = "Brand impersonation phishing";
   } else if (credentialsDetected && hasUrlRisk) {
     category = "Credential phishing";
   } else if (financialDetected && urgencyDetected) {
     category = "Financial / reward scam";
+  } else if (isUnencryptedIpUrl) {
+    category = "Unencrypted IP-address URL";
   } else if (hasUrlRisk) {
     category = "Suspicious link";
   } else if (score >= 30) {
     category = "Suspicious social-engineering message";
   }
-
   const urlPoints = signals
     .filter((signal) => signal.category === "url")
     .reduce((sum, signal) => sum + signal.points, 0);
-
   const scamDNA = {
     urgency: urgencyDetected ? 92 : 8,
     fear: fearDetected ? 84 : 7,
@@ -343,44 +331,45 @@ export function analyzeThreat(rawInput: string): AnalysisResult {
     credentials: credentialsDetected ? 95 : 5,
     urlRisk: hasUrlRisk ? Math.min(98, 35 + urlPoints * 2) : foundUrl ? 15 : 5,
   };
-
   const deceptionChain: string[] = [];
-
   if (detectedBrand) {
     deceptionChain.push(`Claims trust using ${detectedBrand.display}`);
   }
-
   if (fearDetected) {
     deceptionChain.push("Creates fear of account loss or negative consequences");
   }
-
   if (urgencyDetected) {
     deceptionChain.push("Pressures the victim to act immediately");
   }
-
   if (observedDomain) {
-    deceptionChain.push(`Redirects the user to ${observedDomain}`);
+    deceptionChain.push(
+      isUnencryptedIpUrl
+        ? `Uses unencrypted HTTP to reach ${observedDomain}`
+        : `Redirects the user to ${observedDomain}`
+    );
   }
-
   if (credentialsDetected) {
     deceptionChain.push("Attempts to obtain identity or authentication information");
   }
-
   if (financialDetected) {
     deceptionChain.push("Uses money, reward or payment pressure to influence action");
   }
-
   if (deceptionChain.length === 0) {
     deceptionChain.push(
       "No clear deception chain detected from the current signals"
     );
   }
-
   const actions =
     level === "LOW"
       ? [
           "No major suspicious indicators were detected.",
           "Still verify unexpected requests independently before acting.",
+        ]
+      : isUnencryptedIpUrl
+      ? [
+          "Verify that this local-network service belongs to your organisation or network administrator.",
+          "Avoid entering passwords or personal information over an unencrypted HTTP connection.",
+          "A local IP address or unusual port alone does not prove the site is malicious.",
         ]
       : [
           "Do not open suspicious links from this message.",
@@ -388,7 +377,6 @@ export function analyzeThreat(rawInput: string): AnalysisResult {
           "Open the organisation's official app or website manually.",
           "Contact the organisation through a trusted official channel if unsure.",
         ];
-
   return {
     score,
     level,

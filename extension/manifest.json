@@ -1,13 +1,15 @@
+
 {
   "manifest_version": 3,
   "name": "KAVACH Guard",
-  "version": "0.2.0",
-  "description": "Privacy-first local phishing and scam detection companion for KAVACH AI.",
+  "version": "0.3.0",
+  "description": "Privacy-first phishing detection and automatic browser protection.",
   "permissions": [
     "activeTab",
     "tabs",
     "contextMenus",
-    "storage"
+    "storage",
+    "declarativeNetRequest"
   ],
   "background": {
     "service_worker": "background.js"
@@ -15,5 +17,14 @@
   "action": {
     "default_popup": "popup.html",
     "default_title": "KAVACH Guard"
+  },
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "kavach_rules",
+        "enabled": true,
+        "path": "block-rules.json"
+      }
+    ]
   }
 }

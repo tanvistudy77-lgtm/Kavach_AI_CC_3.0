@@ -1,8 +1,9 @@
+
 let currentUrl = "";
 
-// --------------------------------------------------
-// TRUSTED BRAND DIRECTORY
-// --------------------------------------------------
+// ============================================
+// KAVACH GUARD — TRUSTED BRAND DIRECTORY
+// ============================================
 
 const brands = [
   {
@@ -42,10 +43,9 @@ const brands = [
   },
 ];
 
-
-// --------------------------------------------------
+// ============================================
 // HELPER FUNCTIONS
-// --------------------------------------------------
+// ============================================
 
 function addSignal(signals, label, points, reason) {
   signals.push({
@@ -55,16 +55,13 @@ function addSignal(signals, label, points, reason) {
   });
 }
 
-
 function extractUrl(text) {
-  // Full URL
   const fullUrlMatch = text.match(/https?:\/\/[^\s]+/i);
 
   if (fullUrlMatch) {
     return fullUrlMatch[0].replace(/[),.;!?]+$/, "");
   }
 
-  // Plain domain such as example.com
   const domainMatch = text
     .trim()
     .match(/^(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i);
@@ -76,23 +73,17 @@ function extractUrl(text) {
   return null;
 }
 
-
-// --------------------------------------------------
-// KAVACH LOCAL ANALYSIS ENGINE
-// --------------------------------------------------
+// ============================================
+// KAVACH LOCAL THREAT ANALYZER
+// ============================================
 
 function analyze(input) {
   const text = input.toLowerCase();
   const signals = [];
 
-  // -------------------------
-  // URGENCY
-  // -------------------------
-
+  // 1. ARTIFICIAL URGENCY
   if (
-    /\b(urgent|urgently|immediately|act now|today only|last chance|verify now|within \d+ hours?|expires?|limited time)\b/i.test(
-      input
-    )
+    /\b(urgent|urgently|immediately|act now|today only|last chance|verify now|within \d+ hours?|expires?|limited time)\b/i.test(input)
   ) {
     addSignal(
       signals,
@@ -102,15 +93,9 @@ function analyze(input) {
     );
   }
 
-
-  // -------------------------
-  // FEAR / PRESSURE
-  // -------------------------
-
+  // 2. FEAR / PRESSURE
   if (
-    /\b(blocked|will be blocked|suspended|deactivated|legal action|police|penalty|account closed|account locked|service disconnected)\b/i.test(
-      input
-    )
+    /\b(blocked|will be blocked|suspended|deactivated|legal action|police|penalty|account closed|account locked|service disconnected)\b/i.test(input)
   ) {
     addSignal(
       signals,
@@ -120,15 +105,9 @@ function analyze(input) {
     );
   }
 
-
-  // -------------------------
-  // CREDENTIAL REQUEST
-  // -------------------------
-
+  // 3. CREDENTIAL REQUEST
   if (
-    /\b(otp|password|pin|cvv|kyc|login|log in|bank details|card details|verify account|verify your account|credentials)\b/i.test(
-      input
-    )
+    /\b(otp|password|pin|cvv|kyc|login|log in|bank details|card details|verify account|verify your account|credentials)\b/i.test(input)
   ) {
     addSignal(
       signals,
@@ -138,15 +117,9 @@ function analyze(input) {
     );
   }
 
-
-  // -------------------------
-  // FINANCIAL BAIT
-  // -------------------------
-
+  // 4. FINANCIAL BAIT
   if (
-    /(₹|\brs\.?\s?\d|cashback|lottery|reward|prize|refund|upi|investment|guaranteed return|claim money|free money)/i.test(
-      input
-    )
+    /(₹|\brs\.?\s?\d|cashback|lottery|reward|prize|refund|upi|investment|guaranteed return|claim money|free money)/i.test(input)
   ) {
     addSignal(
       signals,
@@ -156,22 +129,16 @@ function analyze(input) {
     );
   }
 
-
-  // -------------------------
-  // BRAND DETECTION
-  // -------------------------
-
+  // 5. BRAND DETECTION
   const detectedBrand = brands.find((brand) =>
     brand.words.some((word) => text.includes(word))
   );
 
-
-  // -------------------------
-  // URL ANALYSIS
-  // -------------------------
+  // ============================================
+  // URL SECURITY ANALYSIS
+  // ============================================
 
   const foundUrl = extractUrl(input);
-
   let hostname = "";
 
   if (foundUrl) {
@@ -182,8 +149,39 @@ function analyze(input) {
         .toLowerCase()
         .replace(/^www\./, "");
 
+      const isLoopback =
+        hostname === "localhost" ||
+        /^127\./.test(hostname) ||
+        hostname === "[::1]" ||
+        hostname === "::1";
 
-      // Suspicious TLD
+      const isIpHostname =
+        /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname);
+
+      // 6. UNENCRYPTED HTTP CONNECTION
+      if (
+        parsedUrl.protocol === "http:" &&
+        !isLoopback
+      ) {
+        addSignal(
+          signals,
+          "Unencrypted HTTP connection",
+          15,
+          "HTTP traffic is not encrypted. Verify the service before entering sensitive information."
+        );
+      }
+
+      // 7. UNUSUAL WEB PORT
+      if (parsedUrl.port && !isLoopback) {
+        addSignal(
+          signals,
+          "Unusual web port",
+          10,
+          `The site uses port ${parsedUrl.port}. Custom ports can be legitimate but merit verification.`
+        );
+      }
+
+      // 8. SUSPICIOUS DOMAIN ENDING
       if (
         /\.(xyz|top|click|buzz|site|online|live|support|info)$/i.test(
           hostname
@@ -197,8 +195,7 @@ function analyze(input) {
         );
       }
 
-
-      // Trust-building words
+      // 9. TRUST-BUILDING WORDS
       if (
         /(secure|verify|verification|update|kyc|login|signin|account|support)/i.test(
           hostname
@@ -212,8 +209,7 @@ function analyze(input) {
         );
       }
 
-
-      // Short URL
+      // 10. SHORTENED URL
       if (
         /^(bit\.ly|tinyurl\.com|rb\.gy|cutt\.ly|t\.co|goo\.gl)$/i.test(
           hostname
@@ -227,9 +223,8 @@ function analyze(input) {
         );
       }
 
-
-      // Raw IP
-      if (/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) {
+      // 11. RAW IP ADDRESS
+      if (isIpHostname && !isLoopback) {
         addSignal(
           signals,
           "IP address used instead of domain",
@@ -238,8 +233,7 @@ function analyze(input) {
         );
       }
 
-
-      // Punycode
+      // 12. LOOK-ALIKE DOMAIN
       if (hostname.includes("xn--")) {
         addSignal(
           signals,
@@ -249,9 +243,12 @@ function analyze(input) {
         );
       }
 
-
-      // Excessive subdomains
-      if (hostname.split(".").length >= 4) {
+      // 13. EXCESSIVE SUBDOMAINS
+      // Do not mistake IPv4 address segments for subdomains.
+      if (
+        !isIpHostname &&
+        hostname.split(".").length >= 4
+      ) {
         addSignal(
           signals,
           "Excessive subdomains",
@@ -259,7 +256,6 @@ function analyze(input) {
           "Multiple subdomains may be used to hide the real destination."
         );
       }
-
     } catch {
       addSignal(
         signals,
@@ -270,10 +266,9 @@ function analyze(input) {
     }
   }
 
-
-  // -------------------------
-  // TRUST GAP
-  // -------------------------
+  // ============================================
+  // TRUST GAP DETECTION
+  // ============================================
 
   if (detectedBrand && hostname) {
     const trusted =
@@ -290,10 +285,9 @@ function analyze(input) {
     }
   }
 
-
-  // -------------------------
-  // CALCULATE RISK SCORE
-  // -------------------------
+  // ============================================
+  // RISK SCORE
+  // ============================================
 
   let score = signals.reduce(
     (total, signal) => total + signal.points,
@@ -306,10 +300,9 @@ function analyze(input) {
 
   score = Math.min(score, 100);
 
-
-  // -------------------------
+  // ============================================
   // RISK LEVEL
-  // -------------------------
+  // ============================================
 
   let level = "LOW";
 
@@ -321,10 +314,9 @@ function analyze(input) {
     level = "SUSPICIOUS";
   }
 
-
-  // -------------------------
+  // ============================================
   // THREAT CATEGORY
-  // -------------------------
+  // ============================================
 
   let category = "No major threat detected";
 
@@ -340,6 +332,16 @@ function analyze(input) {
     (signal) => signal.label === "Financial lure"
   );
 
+  const ipDetected = signals.some(
+    (signal) =>
+      signal.label === "IP address used instead of domain"
+  );
+
+  const httpDetected = signals.some(
+    (signal) =>
+      signal.label === "Unencrypted HTTP connection"
+  );
+
   if (trustGapDetected && credentialDetected) {
     category = "Possible brand impersonation phishing";
   } else if (trustGapDetected) {
@@ -348,10 +350,11 @@ function analyze(input) {
     category = "Possible credential phishing";
   } else if (financialDetected && score >= 30) {
     category = "Possible reward / financial scam";
+  } else if (ipDetected && httpDetected) {
+    category = "Unencrypted IP-address URL";
   } else if (score >= 30) {
     category = "Suspicious digital content";
   }
-
 
   return {
     score,
@@ -361,10 +364,9 @@ function analyze(input) {
   };
 }
 
-
-// --------------------------------------------------
-// DISPLAY RESULT
-// --------------------------------------------------
+// ============================================
+// DISPLAY RESULTS IN EXTENSION POPUP
+// ============================================
 
 function showResult(result) {
   const resultContainer =
@@ -372,19 +374,13 @@ function showResult(result) {
 
   resultContainer.classList.remove("hidden");
 
+  document.getElementById("score").textContent =
+    `${result.score}/100`;
 
-  // Score
-  document.getElementById(
-    "score"
-  ).textContent = `${result.score}/100`;
-
-
-  // Level
   const levelElement =
     document.getElementById("level");
 
   levelElement.textContent = result.level;
-
 
   const colors = {
     LOW: "#2ed573",
@@ -393,65 +389,39 @@ function showResult(result) {
     CRITICAL: "#ff4757",
   };
 
-  levelElement.style.color =
-    colors[result.level];
+  levelElement.style.color = colors[result.level];
 
+  document.getElementById("category").textContent =
+    result.category;
 
-  // Category
-  document.getElementById(
-    "category"
-  ).textContent = result.category;
-
-
-  // Signals
   const signalsContainer =
     document.getElementById("signals");
 
   signalsContainer.innerHTML = "";
 
-
   if (result.signals.length === 0) {
-    const safeMessage =
-      document.createElement("div");
-
+    const safeMessage = document.createElement("div");
     safeMessage.className = "signal";
 
-    const strong =
-      document.createElement("strong");
-
-    strong.textContent =
-      "✓ No major suspicious signals";
+    const strong = document.createElement("strong");
+    strong.textContent = "✓ No major suspicious signals";
 
     safeMessage.appendChild(strong);
-
-    signalsContainer.appendChild(
-      safeMessage
-    );
+    signalsContainer.appendChild(safeMessage);
 
     return;
   }
 
-
   result.signals.forEach((signal) => {
-    const div =
-      document.createElement("div");
-
+    const div = document.createElement("div");
     div.className = "signal";
 
-
-    const strong =
-      document.createElement("strong");
-
+    const strong = document.createElement("strong");
     strong.textContent =
       `${signal.label} (+${signal.points})`;
 
-
-    const reason =
-      document.createElement("small");
-
-    reason.textContent =
-      signal.reason;
-
+    const reason = document.createElement("small");
+    reason.textContent = signal.reason;
 
     div.appendChild(strong);
     div.appendChild(reason);
@@ -460,114 +430,76 @@ function showResult(result) {
   });
 }
 
-
-// --------------------------------------------------
-// CURRENT TAB URL
-// --------------------------------------------------
+// ============================================
+// DETECT CURRENT BROWSER TAB URL
+// ============================================
 
 chrome.tabs.query(
   {
     active: true,
     currentWindow: true,
   },
-
   (tabs) => {
     if (tabs[0]?.url) {
       currentUrl = tabs[0].url;
 
-      document.getElementById(
-        "currentUrl"
-      ).textContent = currentUrl;
+      document.getElementById("currentUrl").textContent =
+        currentUrl;
     }
   }
 );
 
-
-// --------------------------------------------------
-// LOAD TEXT SELECTED USING RIGHT CLICK
-// --------------------------------------------------
-
-// --------------------------------------------------
-// LOAD + AUTO ANALYZE RIGHT-CLICKED TEXT
-// --------------------------------------------------
+// ============================================
+// AUTO ANALYZE RIGHT-CLICK SELECTED TEXT
+// ============================================
 
 chrome.storage.local.get(
-  [
-    "kavachSelectedText",
-    "kavachAutoAnalyze"
-  ],
-
+  ["kavachSelectedText", "kavachAutoAnalyze"],
   (result) => {
     if (result.kavachSelectedText) {
-      const input =
-        document.getElementById("input");
+      const input = document.getElementById("input");
 
-      input.value =
-        result.kavachSelectedText;
+      input.value = result.kavachSelectedText;
 
-      // Automatically analyze selected text
       if (result.kavachAutoAnalyze) {
-        const analysis =
-          analyze(result.kavachSelectedText);
+        const analysis = analyze(result.kavachSelectedText);
 
         showResult(analysis);
       }
 
-      // Clear stored temporary text
       chrome.storage.local.remove([
         "kavachSelectedText",
-        "kavachAutoAnalyze"
+        "kavachAutoAnalyze",
       ]);
     }
   }
 );
 
-
-// --------------------------------------------------
+// ============================================
 // SCAN CURRENT URL BUTTON
-// --------------------------------------------------
+// ============================================
 
 document
   .getElementById("scanUrl")
-  .addEventListener(
-    "click",
+  .addEventListener("click", () => {
+    if (!currentUrl) return;
 
-    () => {
-      if (!currentUrl) {
-        return;
-      }
+    const result = analyze(currentUrl);
+    showResult(result);
+  });
 
-      const result =
-        analyze(currentUrl);
-
-      showResult(result);
-    }
-  );
-
-
-// --------------------------------------------------
+// ============================================
 // ANALYZE MESSAGE / URL BUTTON
-// --------------------------------------------------
+// ============================================
 
 document
   .getElementById("analyzeText")
-  .addEventListener(
-    "click",
+  .addEventListener("click", () => {
+    const input = document.getElementById("input");
+    const value = input.value.trim();
 
-    () => {
-      const input =
-        document.getElementById("input");
+    if (!value) return;
 
-      const value =
-        input.value.trim();
-
-      if (!value) {
-        return;
-      }
-
-      const result =
-        analyze(value);
-
-      showResult(result);
-    }
-  );
+    const result = analyze(value);
+    showResult(result);
+  });
